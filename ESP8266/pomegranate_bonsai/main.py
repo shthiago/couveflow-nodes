@@ -91,12 +91,14 @@ def main():
     token = get_token()
     register_device(token)
     while True:
-        pin_lock()
-        send_dht_data(token)
-        send_hygrometer_data(token)
-        gc.collect()
-        wait_next_loop()
-        token = get_token()  # Re-auth, in case token was invalidated
-
+        try:
+            pin_lock()
+            send_dht_data(token)
+            send_hygrometer_data(token)
+            gc.collect()
+            wait_next_loop()
+            token = get_token()  # Re-auth, in case token was invalidated
+        except:
+            machine.reset()
 
 main()
