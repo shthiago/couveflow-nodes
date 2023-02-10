@@ -13,7 +13,13 @@ LOOP_DELAY_MINUTES = 10
 HTTP_CREATED = 201
 HTTP_CONFLICT = 409
 
-DHT_PIN = pinmap.D4
+DHT_PIN = pinmap.D3
+HYDROMETER_PIN = 0
+LOCK_PIN = pinmap.D5
+LED_PIN = pinmap.D4
+
+HYGROMETER_DRY = 732
+HYGROMETER_WATER = 321
 
 
 def register_device(token):
@@ -28,6 +34,14 @@ def register_device(token):
 
 def get_dht():
     return dht.DHT11(machine.Pin(DHT_PIN))
+
+def led_up():
+    p = machine.Pin(LED_PIN, machine.Pin.OUT)
+    p.off()
+
+def led_down():
+    p = machine.Pin(LED_PIN, machine.Pin.OUT)
+    p.on()
 
 
 def wait_next_loop():
@@ -55,11 +69,31 @@ def send_dht_data(token):
     send_measure(env.dht_humidity, dht.humidity(), token)
 
 
+def send_hygrometer_data(token):
+    hygrometer = machine.ADC(HYDROMETER_PIN)
+    value = hygrometer.read()
+    pctg = 100 * (1 - ((value - HYGROMETER_WATER) / (HYGROMETER_DRY - HYGROMETER_WATER)))
+    pctg = round(pctg, 2)
+    send_measure(env.hygrometer_value, pctg, token)
+
+
+def pin_lock():
+    # External lock, to avoid measure being sent before
+    # setup is complete
+    p2 = machine.Pin(LOCK_PIN, machine.Pin.IN)
+
+    led_up()
+    while p2.value() == 1:
+        pass
+    led_down()
+
 def main():
     token = get_token()
     register_device(token)
     while True:
+        pin_lock()
         send_dht_data(token)
+        send_hygrometer_data(token)
         gc.collect()
         wait_next_loop()
         token = get_token()  # Re-auth, in case token was invalidated
